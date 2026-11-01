@@ -58,6 +58,27 @@ def _largest_remainder(total: int, weights: Mapping[str, float]) -> OrderedDict[
     return floors
 
 
+def _find_contingency(mapping: Mapping[str, float]) -> str | None:
+    """Find the first category representing a contingency reserve."""
+    return next(
+        (key for key in mapping if "contingency" in key.lower() or "buffer" in key.lower()),
+        None,
+    )
+
+
+def _allocate_with_contingency(total: int, weights: OrderedDict[str, float], contingency: str) -> OrderedDict[str, int]:
+    """Allocate the non-contingency amount and add a ten-percent reserve."""
+    reserved = min(int(round(total * 0.10)), total)
+    remaining = OrderedDict((key, value) for key, value in weights.items() if key != contingency and value > 0)
+    if not remaining:
+        return OrderedDict({contingency: total})
+    if sum(remaining.values()) <= 0:
+        raise ValueError("Remaining category weights must be positive.")
+    allocated = _largest_remainder(total - reserved, remaining)
+    allocated[contingency] = reserved
+    return allocated
+
+
 def allocate(total: float | int, percentages: Mapping[str, float]) -> OrderedDict[str, int]:
     """Allocate a total budget across categories and reserve a mandatory 10% contingency."""
     if total is None:
@@ -73,27 +94,9 @@ def allocate(total: float | int, percentages: Mapping[str, float]) -> OrderedDic
     if not normalized:
         raise ValueError("At least one valid percentage is required.")
 
-    contingency_name = None
-    for key in list(normalized.keys()):
-        if "contingency" in key.lower() or "buffer" in key.lower():
-            contingency_name = key
-            break
-
+    contingency_name = _find_contingency(normalized)
     if contingency_name is not None:
-        normalized.pop(contingency_name)
-        logical_contingency = total_minor * 0.10
-        reserved = int(round(logical_contingency))
-        if reserved > total_minor:
-            reserved = total_minor
-        remaining_total = total_minor - reserved
-        remaining_weights = OrderedDict({k: v for k, v in normalized.items() if v > 0})
-        if not remaining_weights:
-            return OrderedDict({contingency_name: total_minor})
-        if sum(remaining_weights.values()) <= 0:
-            raise ValueError("Remaining category weights must be positive.")
-        scaled = _largest_remainder(remaining_total, remaining_weights)
-        scaled[contingency_name] = reserved
-        return OrderedDict((k, int(v)) for k, v in scaled.items())
+        return _allocate_with_contingency(total_minor, normalized, contingency_name)
 
     reservation = int(round(total_minor * 0.10))
     remaining_total = total_minor - reservation
@@ -136,6 +139,73 @@ def _coerce_item_dicts(
     return normalized
 
 
+def _normalize_locks(locked: Mapping[str, float | int] | None) -> OrderedDict[str, int]:
+    """Normalize locked category amounts while preserving insertion order."""
+    if not locked:
+        return OrderedDict()
+    return OrderedDict(
+        (str(key).strip(), _as_amount(value))
+        for key, value in locked.items()
+        if key is not None and str(key).strip()
+    )
+
+
+def _remaining_items(
+    items: Iterable[OrderedDict[str, Any]],
+    locked: Mapping[str, int],
+) -> list[OrderedDict[str, Any]]:
+    """Return items whose categories are eligible for redistribution."""
+    return [item for item in items if str(item.get("category", "")).strip() not in locked]
+
+
+def _redistribution_weights(
+    items: Iterable[OrderedDict[str, Any]],
+    locked: Mapping[str, int],
+) -> OrderedDict[str, float]:
+    """Build positive weights for unlocked categories."""
+    weights: OrderedDict[str, float] = OrderedDict()
+    for item in items:
+        category = str(item.get("category", "")).strip()
+        amount = max(_as_amount(item.get("amount", 0)), 0)
+        weights[category] = amount if amount > 0 else 1.0
+    if not weights and locked:
+        weights.update((category, 1.0) for category in locked)
+    return weights
+
+
+def _build_recalculated_items(
+    items: Iterable[OrderedDict[str, Any]],
+    locked: Mapping[str, int],
+    allocated: Mapping[str, int],
+) -> OrderedDict[str, OrderedDict[str, Any]]:
+    """Apply locked and redistributed amounts to the original item shape."""
+    result: OrderedDict[str, OrderedDict[str, Any]] = OrderedDict()
+    seen: set[str] = set()
+    for item in items:
+        category = str(item.get("category", "")).strip()
+        amount = locked.get(category, allocated.get(category, 0))
+        updated = OrderedDict(item)
+        updated["category"] = category
+        updated["amount"] = int(amount)
+        result[category] = updated
+        seen.add(category)
+    for category, amount in locked.items():
+        if category not in result:
+            result[category] = OrderedDict({"category": category, "amount": int(amount)})
+    for category, amount in allocated.items():
+        if category not in seen:
+            result[category] = OrderedDict({"category": category, "amount": int(amount)})
+    return result
+
+
+def _correct_total(result: OrderedDict[str, OrderedDict[str, Any]], total: int) -> None:
+    """Correct a final rounding residue on the last result item."""
+    current = sum(int(item.get("amount", 0)) for item in result.values())
+    if result and current != total:
+        last_key = next(reversed(result))
+        result[last_key]["amount"] = int(result[last_key].get("amount", 0)) + total - current
+
+
 def recalculate(
     current_items: Iterable[Mapping[str, Any]] | Mapping[str, Any] | None,
     total: float | int | None = None,
@@ -151,40 +221,19 @@ def recalculate(
         total = sum(int(item.get("amount", 0)) for item in items)
 
     total_minor = _as_amount(total)
-    fixed_lock = (
-        {}
-        if locked is None
-        else {
-            str(key).strip(): _as_amount(value) for key, value in locked.items() if key is not None and str(key).strip()
-        }
-    )
+    fixed_lock = _normalize_locks(locked)
     if sum(fixed_lock.values()) > total_minor:
         raise ValueError("Locked category amounts exceed the total budget.")
 
-    locked_by_name = OrderedDict((category, amount) for category, amount in fixed_lock.items())
-    unlocked_items: list[OrderedDict[str, Any]] = []
-    for item in items:
-        category = str(item.get("category", "")).strip()
-        if category in locked_by_name:
-            continue
-        unlocked_items.append(item)
-
-    remaining_total = total_minor - sum(locked_by_name.values())
+    unlocked_items = _remaining_items(items, fixed_lock)
+    remaining_total = total_minor - sum(fixed_lock.values())
     if remaining_total < 0:
         raise ValueError("Remaining budget after locks cannot be negative.")
 
-    if not unlocked_items and not locked_by_name:
+    if not unlocked_items and not fixed_lock:
         return []
 
-    unlocked_weights: OrderedDict[str, float] = OrderedDict()
-    for item in unlocked_items:
-        category = str(item.get("category", "")).strip()
-        current_amount = max(_as_amount(item.get("amount", 0)), 0)
-        unlocked_weights[category] = current_amount if current_amount > 0 else 1.0
-
-    if not unlocked_weights and locked_by_name:
-        unlocked_weights = OrderedDict((category, 1.0) for category in [str(name) for name in locked_by_name])
-
+    unlocked_weights = _redistribution_weights(unlocked_items, fixed_lock)
     if sum(unlocked_weights.values()) <= 0:
         equal_amount = remaining_total // max(1, len(unlocked_weights))
         residue = remaining_total % max(1, len(unlocked_weights))
@@ -194,36 +243,8 @@ def recalculate(
         unlocked_weights = redistributed
 
     allocated = _largest_remainder(remaining_total, unlocked_weights)
-    result: OrderedDict[str, OrderedDict[str, Any]] = OrderedDict()
-    seen: set[str] = set()
-
-    for item in items:
-        category = str(item.get("category", "")).strip()
-        if category in locked_by_name:
-            amount = locked_by_name[category]
-        elif category in allocated:
-            amount = allocated[category]
-        else:
-            amount = 0
-        seen.add(category)
-        updated = OrderedDict(item)
-        updated["category"] = category
-        updated["amount"] = int(amount)
-        result[category] = updated
-
-    for category, amount in locked_by_name.items():
-        if category not in result:
-            result[category] = OrderedDict({"category": category, "amount": int(amount)})
-
-    for category, amount in allocated.items():
-        if category not in seen:
-            result[category] = OrderedDict({"category": category, "amount": int(amount)})
-
-    if sum(int(item.get("amount", 0)) for item in result.values()) != total_minor:
-        diff = total_minor - sum(int(item.get("amount", 0)) for item in result.values())
-        if result:
-            last_key = next(reversed(result))
-            result[last_key]["amount"] = int(result[last_key].get("amount", 0)) + diff
+    result = _build_recalculated_items(items, fixed_lock, allocated)
+    _correct_total(result, total_minor)
 
     return list(result.values())
 

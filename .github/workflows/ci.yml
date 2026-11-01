@@ -27,3 +27,56 @@ jobs:
         run: |
           cd backend
           pytest -v
+
+  quality-gates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install quality tools
+        run: |
+          python -m pip install radon
+          npm install --global jscpd
+
+      - name: Enforce Python complexity
+        run: |
+          python - <<'PY'
+          import json
+          import subprocess
+          result = subprocess.run(["radon", "cc", "-j", "backend/app"], check=True, capture_output=True, text=True)
+          report = json.loads(result.stdout)
+          offenders = [
+              f"{path}:{item['name']} ({item['complexity']})"
+              for path, blocks in report.items()
+              for item in blocks
+              if item["complexity"] > 10
+          ]
+          if offenders:
+              print("\n".join(offenders))
+              raise SystemExit("Cyclomatic complexity above 10 detected")
+          PY
+
+      - name: Enforce file size
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          roots = (Path("backend/app"), Path("frontend/src"))
+          offenders = [
+              f"{path} ({len(path.read_text(encoding='utf-8').splitlines())})"
+              for root in roots
+              for path in root.rglob("*")
+              if path.suffix in {".py", ".ts", ".tsx"}
+              and len(path.read_text(encoding="utf-8").splitlines()) > 300
+          ]
+          if offenders:
+              print("\n".join(offenders))
+              raise SystemExit("Source file exceeds 300 lines")
+          PY
+
+      - name: Enforce duplication
+        run: jscpd backend/app frontend/src --min-lines 6 --threshold 3

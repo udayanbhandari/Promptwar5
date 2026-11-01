@@ -7,6 +7,8 @@ import EmptyState from '../components/EmptyState';
 import Skeleton from '../components/Skeleton';
 import type { RiskScenario } from '../types';
 
+// The page coordinates three async flows and keeps their state together.
+// eslint-disable-next-line max-lines-per-function
 export default function PlanBPage() {
   const { id } = useParams();
   const [risks, setRisks] = useState<RiskScenario[]>([]);

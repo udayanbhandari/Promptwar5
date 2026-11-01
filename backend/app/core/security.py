@@ -2,11 +2,13 @@
 
 import re
 import secrets
+from collections.abc import Awaitable, Callable
 
 from fastapi import Request
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import Response
 
 from app.core.config import settings
 
@@ -59,7 +61,12 @@ def get_owner_token(request: Request) -> str | None:
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     """Add baseline security headers to every response."""
 
-    async def dispatch(self, request: Request, call_next):
+    async def dispatch(
+        self,
+        request: Request,
+        call_next: Callable[[Request], Awaitable[Response]],
+    ) -> Response:
+        """Add security headers to the downstream response."""
         response = await call_next(request)
         headers = {
             "Content-Security-Policy": (

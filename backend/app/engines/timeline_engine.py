@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections import defaultdict, deque
 from collections.abc import Sequence
 from datetime import date, timedelta
+from typing import cast
 
 from app.engines.templates import EVENT_TASK_TEMPLATES
 
@@ -80,7 +81,8 @@ def build_timeline(event_type: str | Sequence[dict], event_date: date, today: da
     task_items: list[dict] = []
     for template in task_templates:
         schedule = dict(template)
-        schedule["due_date"] = event_date - timedelta(days=int(schedule["lead_time_days"]))
+        lead_time_days = cast(int, schedule["lead_time_days"])
+        schedule["due_date"] = event_date - timedelta(days=lead_time_days)
         schedule["rush"] = False
         schedule["completed"] = False
         task_items.append(schedule)
