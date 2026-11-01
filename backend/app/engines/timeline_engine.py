@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from collections import defaultdict, deque
+from collections.abc import Sequence
 from datetime import date, timedelta
-from typing import Any, Dict, Iterable, List, Optional, Sequence
 
 from app.engines.templates import EVENT_TASK_TEMPLATES
 
@@ -13,7 +13,7 @@ def _normalize_event_type(event_type: str) -> str:
     return (event_type or "").strip().lower()
 
 
-def _topological_order(tasks: Sequence[dict]) -> List[dict]:
+def _topological_order(tasks: Sequence[dict]) -> list[dict]:
     """Return tasks in a topological order, rejecting cycles."""
     task_map = {task["key"]: task for task in tasks}
     incoming = {key: 0 for key in task_map}
@@ -28,7 +28,7 @@ def _topological_order(tasks: Sequence[dict]) -> List[dict]:
             incoming[task["key"]] += 1
 
     queue = deque(sorted(key for key, degree in incoming.items() if degree == 0))
-    ordered: List[str] = []
+    ordered: list[str] = []
     while queue:
         current = queue.popleft()
         ordered.append(current)
@@ -65,9 +65,9 @@ def _cycle_check(tasks: Sequence[dict]) -> None:
         visit(key)
 
 
-def build_timeline(event_type: str | Sequence[dict], event_date: date, today: date) -> List[dict]:
+def build_timeline(event_type: str | Sequence[dict], event_date: date, today: date) -> list[dict]:
     """Build a backward-scheduled project timeline for an event type or supplied task graph."""
-    if isinstance(event_type, Sequence) and not isinstance(event_type, (str, bytes)):
+    if isinstance(event_type, Sequence) and not isinstance(event_type, str | bytes):
         tasks = [dict(task) for task in event_type]
         _cycle_check(tasks)
         return _topological_order(tasks)
@@ -77,13 +77,15 @@ def build_timeline(event_type: str | Sequence[dict], event_date: date, today: da
         raise ValueError(f"Unsupported event_type '{event_type}'.")
 
     task_templates = EVENT_TASK_TEMPLATES[normalized]
-    tasks: List[dict] = []
+    task_items: list[dict] = []
     for template in task_templates:
         schedule = dict(template)
         schedule["due_date"] = event_date - timedelta(days=int(schedule["lead_time_days"]))
         schedule["rush"] = False
         schedule["completed"] = False
-        tasks.append(schedule)
+        task_items.append(schedule)
+
+    tasks = task_items
 
     _cycle_check(tasks)
     ordered = _topological_order(tasks)
@@ -106,15 +108,15 @@ def build_timeline(event_type: str | Sequence[dict], event_date: date, today: da
     return ordered
 
 
-def critical_path(tasks: Sequence[dict]) -> List[dict]:
+def critical_path(tasks: Sequence[dict]) -> list[dict]:
     """Return a task list representing the longest dependency chain."""
     if not tasks:
         return []
 
     by_key = {task["key"]: task for task in tasks}
-    longest_path: Dict[str, List[str]] = {}
+    longest_path: dict[str, list[str]] = {}
 
-    def walk(task_key: str) -> List[str]:
+    def walk(task_key: str) -> list[str]:
         if task_key in longest_path:
             return longest_path[task_key]
         task = by_key[task_key]
@@ -122,7 +124,7 @@ def critical_path(tasks: Sequence[dict]) -> List[dict]:
         if not deps:
             longest_path[task_key] = [task_key]
             return [task_key]
-        best = []
+        best: list[str] = []
         for dep in deps:
             if dep in by_key:
                 candidate = walk(dep)
@@ -131,7 +133,7 @@ def critical_path(tasks: Sequence[dict]) -> List[dict]:
         longest_path[task_key] = best + [task_key]
         return longest_path[task_key]
 
-    best_path: List[str] = []
+    best_path: list[str] = []
     for task in tasks:
         path = walk(task["key"])
         if len(path) > len(best_path):
@@ -140,12 +142,12 @@ def critical_path(tasks: Sequence[dict]) -> List[dict]:
     return [by_key[key] for key in best_path]
 
 
-def reschedule(tasks: Sequence[dict], new_event_date: date, today: date) -> List[dict]:
+def reschedule(tasks: Sequence[dict], new_event_date: date, today: date) -> list[dict]:
     """Reschedule active tasks for a new event date while keeping completed tasks intact."""
     if not tasks:
         return []
 
-    reshaped: List[dict] = []
+    reshaped: list[dict] = []
     scheduled = {task["key"]: task for task in tasks}
     ordered = _topological_order(tasks)
 
@@ -160,7 +162,9 @@ def reschedule(tasks: Sequence[dict], new_event_date: date, today: date) -> List
             base["due_date"] = new_event_date - timedelta(days=int(task.get("lead_time_days", 0)))
         deps = base.get("depends_on") or []
         dependency_recent = [
-            scheduled[dep]["due_date"] for dep in deps if dep in scheduled and scheduled[dep].get("due_date") is not None
+            scheduled[dep]["due_date"]
+            for dep in deps
+            if dep in scheduled and scheduled[dep].get("due_date") is not None
         ]
         if dependency_recent:
             base["due_date"] = max(base["due_date"], max(dependency_recent))
@@ -176,9 +180,9 @@ def reschedule(tasks: Sequence[dict], new_event_date: date, today: date) -> List
     return reshaped
 
 
-def group_by_urgency(tasks: Sequence[dict], today: date) -> Dict[str, List[dict]]:
+def group_by_urgency(tasks: Sequence[dict], today: date) -> dict[str, list[dict]]:
     """Group tasks into this_week, this_month, or later based on their due dates."""
-    buckets = {"this_week": [], "this_month": [], "later": []}
+    buckets: dict[str, list[dict]] = {"this_week": [], "this_month": [], "later": []}
     for task in tasks:
         due_date = task.get("due_date")
         if due_date is None:

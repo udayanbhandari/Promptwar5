@@ -1,8 +1,10 @@
 """SQLAlchemy model for Event entity."""
 
 import uuid
+
 from sqlalchemy import Column, Date, DateTime, Float, Integer, String, Text, func
 from sqlalchemy.orm import relationship
+
 from app.db.session import Base
 
 

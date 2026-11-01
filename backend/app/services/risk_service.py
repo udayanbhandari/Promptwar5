@@ -2,13 +2,12 @@
 
 from __future__ import annotations
 
-from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from sqlalchemy.orm import Session
 
 from app.engines.budget_engine import recalculate
-from app.models import BudgetItem, Event, RiskScenario, Task
+from app.models import BudgetItem, Event, RiskScenario
 from app.prompts.risk_scenarios_v1 import build_prompt
 from app.schemas.ai_outputs import RiskScenariosOutput
 from app.services.ai_client import AIUnavailable, generate_structured
@@ -39,23 +38,23 @@ def _to_risk_scenario_model(event: Event, item: Any) -> RiskScenario:
     )
 
 
-def generate_risk_scenarios(event: Event, db: Session) -> List[RiskScenario]:
+def generate_risk_scenarios(event: Event, db: Session) -> list[RiskScenario]:
     """Generate and save five event-specific risk scenarios; falls back on deterministic templates if needed."""
     prompt = build_prompt(
-        event_type=event.event_type,
-        guest_count=event.guest_count,
-        city=event.city,
-        culture_style=event.theme_style or "",
-        special_requirements=event.special_requirements or "",
+        event_type=str(event.event_type),
+        guest_count=int(event.guest_count),
+        city=str(event.city),
+        culture_style=str(event.theme_style or ""),
+        special_requirements=str(event.special_requirements or ""),
     )
 
     try:
         output: RiskScenariosOutput = generate_structured(prompt, RiskScenariosOutput)
     except AIUnavailable:
-        output = get_fallback_risk_scenarios(event.event_type)
+        output = get_fallback_risk_scenarios(str(event.event_type))
 
     db.query(RiskScenario).filter(RiskScenario.event_id == event.id).delete(synchronize_session=False)
-    rows: List[RiskScenario] = []
+    rows: list[RiskScenario] = []
     for item in output.risks:
         row = _to_risk_scenario_model(event, item)
         db.add(row)
@@ -66,30 +65,38 @@ def generate_risk_scenarios(event: Event, db: Session) -> List[RiskScenario]:
     return rows
 
 
-def _task_impact_for(event: Event, scenario: RiskScenario) -> List[Dict[str, Any]]:
+def _task_impact_for(event: Event, scenario: RiskScenario) -> list[dict[str, Any]]:
     tasks = []
     for task in event.tasks:
         if task.category.lower() in {"risk", "operations", "venue", "catering", "vendor management", "planning"}:
-            tasks.append({
-                "id": task.id,
-                "title": task.title,
-                "due_date": task.due_date.isoformat() if task.due_date else None,
-                "status": task.status,
-            })
+            tasks.append(
+                {
+                    "id": task.id,
+                    "title": task.title,
+                    "due_date": task.due_date.isoformat() if task.due_date else None,
+                    "status": task.status,
+                }
+            )
     return tasks[:5]
 
 
-def simulate_risk(event: Event, risk: RiskScenario, db: Session) -> Dict[str, Any]:
+def simulate_risk(event: Event, risk: RiskScenario, db: Session) -> dict[str, Any]:
     """Apply a simulated risk in-memory without saving any database changes."""
     budget_items = db.query(BudgetItem).filter(BudgetItem.event_id == event.id).all()
-    current_items = [{"category": item.category, "amount": item.estimated_cost} for item in budget_items]
-    before_total = sum(item["amount"] for item in current_items) if current_items else float(event.total_budget)
+    current_items: list[dict[str, float | int | str]] = [
+        {"category": str(item.category), "amount": float(item.estimated_cost)} for item in budget_items
+    ]
+    before_total = (
+        sum(float(item.get("amount", 0)) for item in current_items)
+        if current_items
+        else float(event.total_budget)
+    )
     impact_pct = float(risk.budget_impact or 0.0)
-    after_total = before_total * (1 + (impact_pct / 100.0)) if impact_pct >= 0 else before_total * (1 + (impact_pct / 100.0))
+    after_total = before_total * (1 + (impact_pct / 100.0))
 
-    simulated_guest_count = event.guest_count
+    simulated_guest_count = int(event.guest_count)
     if "guest" in (risk.trigger_name or "").lower() or risk.scenario_type == "guest_surge":
-        simulated_guest_count = int(round(event.guest_count * 1.2))
+        simulated_guest_count = int(round(int(event.guest_count) * 1.2))
 
     scenario_items = recalculate(current_items, total=after_total, guest_count=simulated_guest_count)
     affected_tasks = _task_impact_for(event, risk)

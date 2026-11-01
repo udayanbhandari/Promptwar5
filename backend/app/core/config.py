@@ -1,7 +1,8 @@
 """Application configuration loaded from environment variables."""
 
+import ast
 from functools import lru_cache
-from typing import List, Union
+
 from pydantic import AliasChoices, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -9,15 +10,11 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     """Central configuration for EventPilot application."""
 
-    # Google Gemini GenAI configuration
     GEMINI_API_KEY: str = ""
     GEMINI_MODEL: str = "gemini-2.5-flash"
-
-    # Database connection string
     DATABASE_URL: str = "sqlite:///./events.db"
 
-    # Allowed CORS / request origins
-    ALLOWED_ORIGINS: Union[List[str], str] = Field(
+    ALLOWED_ORIGINS: list[str] | str = Field(
         default=[
             "http://localhost:5173",
             "http://localhost:3000",
@@ -25,11 +22,15 @@ class Settings(BaseSettings):
         ],
         validation_alias=AliasChoices("ALLOWED_ORIGINS", "CORS_ORIGINS"),
     )
+    CORS_METHODS: list[str] = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
+    CORS_HEADERS: list[str] = ["Authorization", "Content-Type", "X-Owner-Token", "X-Event-Owner-Token"]
 
-    # Rate limiting
     RATE_LIMIT_DEFAULT: str = "100/minute"
+    AI_RATE_LIMIT: str = "10/minute"
+    PUBLIC_RATE_LIMIT: str = "20/minute"
+    MAX_REQUEST_SIZE_BYTES: int = 5_000_000
+    OWNER_TOKEN_HEADER: str = "x-owner-token"
 
-    # Project metadata
     PROJECT_NAME: str = "EventPilot API"
     API_V1_STR: str = "/api/v1"
     ENVIRONMENT: str = "development"
@@ -37,21 +38,27 @@ class Settings(BaseSettings):
 
     @field_validator("ALLOWED_ORIGINS", mode="before")
     @classmethod
-    def assemble_origins(cls, v: Union[str, List[str]]) -> List[str]:
-        """Parse allowed origins from list or comma-separated string."""
-        if isinstance(v, str) and not v.startswith("["):
-            return [i.strip() for i in v.split(",") if i.strip()]
-        elif isinstance(v, list):
-            return v
-        return ["*"]
+    def assemble_origins(cls, v: str | list[str]) -> list[str]:
+        """Parse allowed origins from a comma-separated string or python list."""
+        if v is None:
+            return []
+        if isinstance(v, str):
+            if v.startswith("["):
+                try:
+                    parsed = ast.literal_eval(v)
+                    if isinstance(parsed, list):
+                        return [str(item).strip() for item in parsed if str(item).strip()]
+                except (SyntaxError, ValueError, TypeError):
+                    return [item.strip() for item in v.split(",") if item.strip()]
+            return [item.strip() for item in v.split(",") if item.strip()]
+        if isinstance(v, list):
+            return [str(item).strip() for item in v if str(item).strip()]
+        return []
 
-    # Expose CORS_ORIGINS property for backward compatibility
     @property
-    def CORS_ORIGINS(self) -> List[str]:
-        """Backward compatible accessor for CORS middleware."""
-        if isinstance(self.ALLOWED_ORIGINS, list):
-            return self.ALLOWED_ORIGINS
-        return ["*"]
+    def cors_origins(self) -> list[str]:
+        """Return the configured allowed origins for CORS middleware."""
+        return self.ALLOWED_ORIGINS if isinstance(self.ALLOWED_ORIGINS, list) else []
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -61,7 +68,7 @@ class Settings(BaseSettings):
     )
 
 
-@lru_cache()
+@lru_cache
 def get_settings() -> Settings:
     """Return a cached instance of application settings."""
     return Settings()

@@ -1,8 +1,9 @@
 """Pydantic schemas for Tasks and Milestones."""
 
 from datetime import date, datetime
-from typing import List, Optional
+
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+
 from app.core.security import sanitize_text
 from app.schemas.common import TaskStatus
 
@@ -15,13 +16,13 @@ class TaskBase(BaseModel):
     due_date: date
     status: TaskStatus = TaskStatus.PENDING
     owner: str = Field(default="Host", min_length=1, max_length=100)
-    depends_on: List[str] = Field(default_factory=list, description="List of task IDs that must complete first")
+    depends_on: list[str] = Field(default_factory=list, description="List of task IDs that must complete first")
     is_day_of: bool = Field(default=False)
-    start_time: Optional[str] = Field(None, pattern=r"^(?:[01]\d|2[0-3]):[0-5]\d$")
+    start_time: str | None = Field(None, pattern=r"^(?:[01]\d|2[0-3]):[0-5]\d$")
 
     @field_validator("title", "category", "owner", mode="before")
     @classmethod
-    def strip_text(cls, v: Optional[str]) -> Optional[str]:
+    def strip_text(cls, v: str | None) -> str | None:
         if isinstance(v, str):
             cleaned = sanitize_text(v)
             if not cleaned:
@@ -39,18 +40,18 @@ class TaskCreate(TaskBase):
 class TaskUpdate(BaseModel):
     """Schema for updating a task."""
 
-    title: Optional[str] = Field(None, min_length=1, max_length=200)
-    category: Optional[str] = Field(None, min_length=1, max_length=50)
-    due_date: Optional[date] = None
-    status: Optional[TaskStatus] = None
-    owner: Optional[str] = Field(None, min_length=1, max_length=100)
-    depends_on: Optional[List[str]] = None
-    is_day_of: Optional[bool] = None
-    start_time: Optional[str] = Field(None, pattern=r"^(?:[01]\d|2[0-3]):[0-5]\d$")
+    title: str | None = Field(None, min_length=1, max_length=200)
+    category: str | None = Field(None, min_length=1, max_length=50)
+    due_date: date | None = None
+    status: TaskStatus | None = None
+    owner: str | None = Field(None, min_length=1, max_length=100)
+    depends_on: list[str] | None = None
+    is_day_of: bool | None = None
+    start_time: str | None = Field(None, pattern=r"^(?:[01]\d|2[0-3]):[0-5]\d$")
 
     @field_validator("title", "category", "owner", mode="before")
     @classmethod
-    def strip_text(cls, v: Optional[str]) -> Optional[str]:
+    def strip_text(cls, v: str | None) -> str | None:
         if isinstance(v, str):
             cleaned = sanitize_text(v)
             if not cleaned:

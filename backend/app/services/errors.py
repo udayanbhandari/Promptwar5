@@ -7,10 +7,13 @@ class AIError(Exception):
     pass
 
 
-class AIUnavailable(AIError):
+class AIUnavailableError(AIError):
     """Raised when the AI service is offline, unconfigured, or exhausted retries."""
 
     pass
+
+
+AIUnavailable = AIUnavailableError
 
 
 class AISchemaValidationError(AIError):

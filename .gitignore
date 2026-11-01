@@ -11,6 +11,7 @@ ENV/
 
 # SQLite
 *.db
+*.sqlite
 *.sqlite3
 
 # Node / Frontend
@@ -20,6 +21,8 @@ dist/
 
 # Environment & IDE
 .env
+.env.local
+.env.*.local
 .idea/
 .vscode/
 *.swp

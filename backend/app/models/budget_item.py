@@ -1,8 +1,10 @@
 """SQLAlchemy model for BudgetItem entity."""
 
 import uuid
+
 from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, String, func
 from sqlalchemy.orm import relationship
+
 from app.db.session import Base
 
 

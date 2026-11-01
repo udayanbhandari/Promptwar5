@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import math
 from collections import OrderedDict
-from typing import Any, Iterable, List, Mapping
+from collections.abc import Iterable, Mapping
+from typing import Any
 
 
 def _as_amount(value: Any) -> int:
@@ -79,7 +80,7 @@ def allocate(total: float | int, percentages: Mapping[str, float]) -> OrderedDic
             break
 
     if contingency_name is not None:
-        contingency_percent = normalized.pop(contingency_name)
+        normalized.pop(contingency_name)
         logical_contingency = total_minor * 0.10
         reserved = int(round(logical_contingency))
         if reserved > total_minor:
@@ -108,14 +109,16 @@ def allocate(total: float | int, percentages: Mapping[str, float]) -> OrderedDic
     return OrderedDict((category, int(amount)) for category, amount in allocated.items())
 
 
-def _coerce_item_dicts(current_items: Iterable[Mapping[str, Any]] | Mapping[str, Any] | None) -> List[OrderedDict[str, Any]]:
+def _coerce_item_dicts(
+    current_items: Iterable[Mapping[str, Any]] | Mapping[str, Any] | None,
+) -> list[OrderedDict[str, Any]]:
     if current_items is None:
         return []
     if isinstance(current_items, Mapping):
         items = [{"category": key, "amount": value} for key, value in current_items.items()]
         return [OrderedDict(item) for item in items]
 
-    normalized: List[OrderedDict[str, Any]] = []
+    normalized: list[OrderedDict[str, Any]] = []
     for item in current_items:
         if isinstance(item, Mapping):
             category = item.get("category") or item.get("name") or item.get("title")
@@ -138,7 +141,7 @@ def recalculate(
     total: float | int | None = None,
     locked: Mapping[str, float | int] | None = None,
     guest_count: int | None = None,
-) -> List[OrderedDict[str, Any]]:
+) -> list[OrderedDict[str, Any]]:
     """Rebalance a list of budget items while keeping locked categories fixed."""
     items = _coerce_item_dicts(current_items)
     if not items and (locked is None or not locked):
@@ -148,12 +151,18 @@ def recalculate(
         total = sum(int(item.get("amount", 0)) for item in items)
 
     total_minor = _as_amount(total)
-    fixed_lock = {} if locked is None else {str(key).strip(): _as_amount(value) for key, value in locked.items() if key is not None and str(key).strip()}
+    fixed_lock = (
+        {}
+        if locked is None
+        else {
+            str(key).strip(): _as_amount(value) for key, value in locked.items() if key is not None and str(key).strip()
+        }
+    )
     if sum(fixed_lock.values()) > total_minor:
         raise ValueError("Locked category amounts exceed the total budget.")
 
     locked_by_name = OrderedDict((category, amount) for category, amount in fixed_lock.items())
-    unlocked_items: List[OrderedDict[str, Any]] = []
+    unlocked_items: list[OrderedDict[str, Any]] = []
     for item in items:
         category = str(item.get("category", "")).strip()
         if category in locked_by_name:
@@ -174,14 +183,14 @@ def recalculate(
         unlocked_weights[category] = current_amount if current_amount > 0 else 1.0
 
     if not unlocked_weights and locked_by_name:
-        unlocked_weights = OrderedDict((category, 1.0) for category in [str(name) for name in locked_by_name.keys()])
+        unlocked_weights = OrderedDict((category, 1.0) for category in [str(name) for name in locked_by_name])
 
     if sum(unlocked_weights.values()) <= 0:
         equal_amount = remaining_total // max(1, len(unlocked_weights))
         residue = remaining_total % max(1, len(unlocked_weights))
-        redistributed = OrderedDict()
+        redistributed: OrderedDict[str, float] = OrderedDict()
         for idx, category in enumerate(unlocked_weights.keys()):
-            redistributed[category] = equal_amount + (1 if idx < residue else 0)
+            redistributed[category] = float(equal_amount + (1 if idx < residue else 0))
         unlocked_weights = redistributed
 
     allocated = _largest_remainder(remaining_total, unlocked_weights)
@@ -219,7 +228,7 @@ def recalculate(
     return list(result.values())
 
 
-def warnings(items: Iterable[Mapping[str, Any]] | Mapping[str, Any], guest_count: int | None) -> List[str]:
+def warnings(items: Iterable[Mapping[str, Any]] | Mapping[str, Any], guest_count: int | None) -> list[str]:
     """Return human-readable warnings about likely budget stress points."""
     item_map = OrderedDict()
     for item in _coerce_item_dicts(items):
@@ -232,20 +241,25 @@ def warnings(items: Iterable[Mapping[str, Any]] | Mapping[str, Any], guest_count
         return []
 
     total = sum(item_map.values())
-    flags: List[str] = []
+    flags: list[str] = []
 
     catering_names = [
-        category for category in item_map if "catering" in category.lower() or "food" in category.lower() or "bar" in category.lower()
+        category
+        for category in item_map
+        if "catering" in category.lower() or "food" in category.lower() or "bar" in category.lower()
     ]
     if guest_count and guest_count > 0 and catering_names:
         catering_total = sum(item_map[name] for name in catering_names)
         per_guest_minor = catering_total / guest_count
         if per_guest_minor < 4000:
             flags.append(
-                "Catering spend per guest is below the recommended floor; consider increasing food and bar coverage for this guest count."
+                "Catering spend per guest is below the recommended floor; "
+                "consider increasing food and bar coverage for this guest count."
             )
 
-    contingency_names = [category for category in item_map if "contingency" in category.lower() or "buffer" in category.lower()]
+    contingency_names = [
+        category for category in item_map if "contingency" in category.lower() or "buffer" in category.lower()
+    ]
     if contingency_names:
         contingency_total = sum(item_map[name] for name in contingency_names)
         if total > 0 and (contingency_total / total) < 0.05:

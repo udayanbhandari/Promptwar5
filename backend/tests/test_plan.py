@@ -4,7 +4,8 @@ from app.models import Event
 
 
 def test_generate_plan_happy_path(client, monkeypatch):
-    event = Event(
+    """Missing plan creation should return 404 before any generation work starts."""
+    Event(
         title="Sample wedding",
         event_type="wedding",
         target_date=date(2026, 12, 15),
@@ -28,13 +29,27 @@ def test_generate_plan_happy_path(client, monkeypatch):
 
     class FakeIdea:
         ideas = [
-            type("Idea", (), {"aspect": "theme", "title": "Test theme", "description": "desc", "cost_tier": "medium", "why_it_fits": "fits"})()
+            type(
+                "Idea",
+                (),
+                {
+                    "aspect": "theme",
+                    "title": "Test theme",
+                    "description": "desc",
+                    "cost_tier": "medium",
+                    "why_it_fits": "fits",
+                },
+            )()
             for _ in range(5)
         ]
 
     class FakeVendor:
         categories = [
-            type("V", (), {"category": "Venue", "questions": ["Q1", "Q2", "Q3", "Q4", "Q5"], "red_flags": ["A", "B", "C"]})()
+            type(
+                "V",
+                (),
+                {"category": "Venue", "questions": ["Q1", "Q2", "Q3", "Q4", "Q5"], "red_flags": ["A", "B", "C"]},
+            )()
         ]
 
     def fake_generate_structured(prompt, schema, **kwargs):

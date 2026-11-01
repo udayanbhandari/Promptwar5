@@ -2,10 +2,11 @@ from datetime import date
 
 import pytest
 
-from app.engines.timeline_engine import build_timeline, critical_path, group_by_urgency, reschedule
+from app.engines.timeline_engine import build_timeline, group_by_urgency, reschedule
 
 
 def test_build_timeline_orders_dependencies():
+    """Timeline tasks must respect dependency order and due dates."""
     tasks = build_timeline("wedding", date(2026, 12, 15), date(2026, 10, 1))
     assert tasks
     keys = [task["key"] for task in tasks]
@@ -15,11 +16,13 @@ def test_build_timeline_orders_dependencies():
 
 
 def test_build_timeline_marks_rush_less_than_two_weeks_out():
+    """Tasks near the event date should be marked as rush priority."""
     tasks = build_timeline("birthday", date(2026, 10, 10), date(2026, 10, 1))
     assert any(task.get("rush") for task in tasks)
 
 
 def test_cycle_rejection():
+    """Circular task dependencies should raise a clear error."""
     tasks = [
         {"key": "a", "title": "A", "category": "x", "lead_time_days": 1, "depends_on": ["b"], "is_critical": True},
         {"key": "b", "title": "B", "category": "x", "lead_time_days": 2, "depends_on": ["a"], "is_critical": True},
@@ -29,15 +32,35 @@ def test_cycle_rejection():
 
 
 def test_reschedule_keeps_completed_tasks():
+    """Rescheduling must preserve completed work while updating outstanding tasks."""
     tasks = [
-        {"key": "a", "title": "A", "category": "x", "lead_time_days": 10, "depends_on": [], "is_critical": True, "completed": True, "due_date": date(2026, 11, 1)},
-        {"key": "b", "title": "B", "category": "x", "lead_time_days": 7, "depends_on": ["a"], "is_critical": True, "completed": False, "due_date": date(2026, 11, 5)},
+        {
+            "key": "a",
+            "title": "A",
+            "category": "x",
+            "lead_time_days": 10,
+            "depends_on": [],
+            "is_critical": True,
+            "completed": True,
+            "due_date": date(2026, 11, 1),
+        },
+        {
+            "key": "b",
+            "title": "B",
+            "category": "x",
+            "lead_time_days": 7,
+            "depends_on": ["a"],
+            "is_critical": True,
+            "completed": False,
+            "due_date": date(2026, 11, 5),
+        },
     ]
     updated = reschedule(tasks, date(2026, 12, 15), date(2026, 10, 1))
     assert any(task["key"] == "a" and task["completed"] for task in updated)
 
 
 def test_group_by_urgency():
+    """Tasks should land in the expected urgency buckets based on due date."""
     tasks = [
         {"key": "now", "title": "Now", "category": "x", "due_date": date(2026, 10, 5)},
         {"key": "soon", "title": "Soon", "category": "x", "due_date": date(2026, 10, 15)},

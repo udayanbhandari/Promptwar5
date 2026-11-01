@@ -1,8 +1,10 @@
 """SQLAlchemy model for RiskScenario entity."""
 
 import uuid
+
 from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, String, Text, func
 from sqlalchemy.orm import relationship
+
 from app.db.session import Base
 
 

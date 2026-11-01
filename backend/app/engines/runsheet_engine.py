@@ -3,10 +3,8 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta
-from typing import Dict, List
 
-
-_EVENT_RUNSHEET_TEMPLATES: Dict[str, List[dict]] = {
+_EVENT_RUNSHEET_TEMPLATES: dict[str, list[tuple[str, str, str, int]]] = {
     "wedding": [
         ("08:00", "09:00", "Hair & makeup setup", 60),
         ("09:00", "10:30", "Venue setup and floral staging", 90),
@@ -58,18 +56,19 @@ def _parse_time(value: str) -> datetime:
     return base.replace(hour=hour, minute=minute)
 
 
-def build_runsheet(event_type: str, start_time: str, guest_count: int) -> List[dict]:
+def build_runsheet(event_type: str, start_time: str, guest_count: int) -> list[dict]:
     """Construct a day-of run sheet with realistic buffer windows per event type."""
     normalized = (event_type or "").strip().lower()
     if normalized not in _EVENT_RUNSHEET_TEMPLATES:
         raise ValueError(f"Unsupported event_type '{event_type}'.")
 
     base_start = _parse_time(start_time)
-    schedule: List[dict] = []
-    for start_str, end_str, title, duration in _EVENT_RUNSHEET_TEMPLATES[normalized]:
-        start_dt = base_start + timedelta(minutes=(
-            _parse_time(start_str).hour * 60 + _parse_time(start_str).minute
-        ) - (_parse_time("00:00").hour * 60 + _parse_time("00:00").minute))
+    schedule: list[dict] = []
+    for start_str, _end_str, title, duration in _EVENT_RUNSHEET_TEMPLATES[normalized]:
+        start_dt = base_start + timedelta(
+            minutes=(_parse_time(start_str).hour * 60 + _parse_time(start_str).minute)
+            - (_parse_time("00:00").hour * 60 + _parse_time("00:00").minute)
+        )
         end_dt = start_dt + timedelta(minutes=duration)
         schedule.append(
             {

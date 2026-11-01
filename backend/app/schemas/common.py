@@ -1,6 +1,7 @@
 """Common enums and error schemas."""
 
 from enum import Enum
+
 from app.schemas.errors import ErrorResponse
 
 

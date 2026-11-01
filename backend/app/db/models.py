@@ -1,12 +1,12 @@
 """Re-export ORM models from app.models for backward compatibility."""
 
 from app.models import (
-    Event,
     BudgetItem,
-    Task,
-    Vendor,
+    Event,
     RiskScenario,
     ShareLink,
+    Task,
+    Vendor,
 )
 
 __all__ = [

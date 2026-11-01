@@ -1,8 +1,10 @@
 """Events router providing CRUD operations."""
 
-from typing import List
+from typing import Annotated
+
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
+
 from app.core.security import limiter
 from app.db.session import get_db
 from app.models import Event
@@ -26,7 +28,7 @@ router = APIRouter(prefix="/events", tags=["Events"])
 def create_event(
     request: Request,
     payload: EventCreate,
-    db: Session = Depends(get_db),
+    db: Annotated[Session, Depends(get_db)],
 ) -> EventResponse:
     """Create a new event record with validated parameters."""
     event = Event(
@@ -48,15 +50,15 @@ def create_event(
 
 @router.get(
     "",
-    response_model=List[EventResponse],
+    response_model=list[EventResponse],
     summary="List all events",
 )
 def list_events(
-    db: Session = Depends(get_db),
-) -> List[EventResponse]:
+    db: Annotated[Session, Depends(get_db)],
+) -> list[EventResponse]:
     """Retrieve all created events, ordered by target date."""
     events = db.query(Event).order_by(Event.target_date.asc()).all()
-    return events
+    return [EventResponse.model_validate(event) for event in events]
 
 
 @router.get(
@@ -66,7 +68,7 @@ def list_events(
 )
 def get_event(
     event_id: str,
-    db: Session = Depends(get_db),
+    db: Annotated[Session, Depends(get_db)],
 ) -> EventDetailResponse:
     """Retrieve full event detail including budget, tasks, vendors, and risks."""
     event = db.query(Event).filter(Event.id == event_id).first()
@@ -86,7 +88,7 @@ def get_event(
 def update_event(
     event_id: str,
     payload: EventUpdate,
-    db: Session = Depends(get_db),
+    db: Annotated[Session, Depends(get_db)],
 ) -> EventResponse:
     """Partially update an event's attributes."""
     event = db.query(Event).filter(Event.id == event_id).first()
@@ -115,7 +117,7 @@ def update_event(
 )
 def delete_event(
     event_id: str,
-    db: Session = Depends(get_db),
+    db: Annotated[Session, Depends(get_db)],
 ):
     """Delete an event and cascade-remove all child associations."""
     event = db.query(Event).filter(Event.id == event_id).first()

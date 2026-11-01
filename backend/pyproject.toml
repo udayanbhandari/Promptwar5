@@ -1,0 +1,56 @@
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+
+[tool.ruff.lint]
+select = [
+    "E",
+    "F",
+    "B",
+    "I",
+    "N",
+    "D",
+    "UP",
+    "SIM",
+]
+ignore = [
+    "D104",
+    "D203",
+    "D213",
+    "D401",
+    "D106",
+    "D107",
+    "D100",
+    "D102",
+    "D101",
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.mypy]
+python_version = "3.11"
+strict = false
+warn_unused_configs = true
+disallow_untyped_defs = false
+check_untyped_defs = true
+no_implicit_optional = true
+show_error_codes = true
+pretty = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+files = ["app"]
+exclude = ["tests"]
+
+[[tool.mypy.overrides]]
+module = ["google.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+pythonpath = "."
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+addopts = "--cov=app --cov-report=term-missing --cov-fail-under=90"
+filterwarnings = ["ignore::DeprecationWarning"]

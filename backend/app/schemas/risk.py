@@ -1,8 +1,9 @@
 """Pydantic schemas for Plan B Risk Scenarios."""
 
 from datetime import datetime
-from typing import Optional
+
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+
 from app.core.security import sanitize_text
 from app.schemas.common import ScenarioType
 
@@ -18,7 +19,7 @@ class RiskScenarioBase(BaseModel):
 
     @field_validator("trigger_name", "mitigation_plan", mode="before")
     @classmethod
-    def strip_text(cls, v: Optional[str]) -> Optional[str]:
+    def strip_text(cls, v: str | None) -> str | None:
         if isinstance(v, str):
             cleaned = sanitize_text(v)
             if not cleaned:
@@ -36,15 +37,15 @@ class RiskScenarioCreate(RiskScenarioBase):
 class RiskScenarioUpdate(BaseModel):
     """Schema for updating a contingency scenario."""
 
-    scenario_type: Optional[ScenarioType] = None
-    trigger_name: Optional[str] = Field(None, min_length=1, max_length=150)
-    mitigation_plan: Optional[str] = Field(None, min_length=1, max_length=2000)
-    budget_impact: Optional[float] = None
-    is_activated: Optional[bool] = None
+    scenario_type: ScenarioType | None = None
+    trigger_name: str | None = Field(None, min_length=1, max_length=150)
+    mitigation_plan: str | None = Field(None, min_length=1, max_length=2000)
+    budget_impact: float | None = None
+    is_activated: bool | None = None
 
     @field_validator("trigger_name", "mitigation_plan", mode="before")
     @classmethod
-    def strip_text(cls, v: Optional[str]) -> Optional[str]:
+    def strip_text(cls, v: str | None) -> str | None:
         if isinstance(v, str):
             cleaned = sanitize_text(v)
             if not cleaned:

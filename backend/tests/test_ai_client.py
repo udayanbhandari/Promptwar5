@@ -1,6 +1,7 @@
 """Test suite for AI client, retries, injection wrapping, and error handling."""
 
 from unittest.mock import MagicMock
+
 import pytest
 from pydantic import BaseModel, Field
 

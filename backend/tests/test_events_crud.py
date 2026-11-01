@@ -1,6 +1,7 @@
 """Test suite for Event CRUD operations and endpoints."""
 
 from datetime import date, timedelta
+
 from fastapi import status
 
 

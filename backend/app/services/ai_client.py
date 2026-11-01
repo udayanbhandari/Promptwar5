@@ -3,8 +3,10 @@
 import json
 import logging
 import time
-from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
-from typing import Optional, Type, TypeVar
+from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import TimeoutError as FutureTimeoutError
+from typing import TypeVar
+
 from google import genai
 from google.genai import types
 from pydantic import BaseModel, ValidationError
@@ -22,7 +24,7 @@ DEFAULT_TIMEOUT_SECONDS = 30.0
 MAX_RETRIES = 2
 
 
-def wrap_user_input(text: Optional[str]) -> str:
+def wrap_user_input(text: str | None) -> str:
     """Enclose user input inside strict XML delimiters to neutralize prompt injection.
 
     Instructs downstream prompts to interpret everything inside delimiters as
@@ -37,8 +39,8 @@ def wrap_user_input(text: Optional[str]) -> str:
 
 def generate_structured(
     prompt: str,
-    schema: Type[T],
-    client: Optional[genai.Client] = None,
+    schema: type[T],
+    client: genai.Client | None = None,
     max_retries: int = MAX_RETRIES,
     timeout: float = DEFAULT_TIMEOUT_SECONDS,
 ) -> T:
@@ -71,7 +73,7 @@ def generate_structured(
     schema_name = schema.__name__
 
     current_prompt = prompt
-    last_error: Optional[Exception] = None
+    last_error: Exception | None = None
 
     for attempt in range(max_retries + 1):
         start_time = time.perf_counter()

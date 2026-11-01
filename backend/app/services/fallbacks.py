@@ -4,7 +4,6 @@ Guarantees 100% application functionality when Gemini API is offline,
 unconfigured, or experiencing network or quota limitations.
 """
 
-from typing import Dict
 from app.schemas.ai_outputs import (
     BudgetSplitOutput,
     CategoryPercentage,
@@ -17,37 +16,70 @@ from app.schemas.ai_outputs import (
     VendorCategoryRecommendation,
 )
 
-
 # -----------------------------------------------------------------------------
 # 1. Fallback Budget Splits (Percentages sum to exactly 100.0)
 # -----------------------------------------------------------------------------
-FALLBACK_BUDGETS: Dict[str, BudgetSplitOutput] = {
+FALLBACK_BUDGETS: dict[str, BudgetSplitOutput] = {
     "wedding": BudgetSplitOutput(
         categories=[
             CategoryPercentage(category="Catering & Bar", percentage=40.0, reason="Core guest hospitality experience."),
-            CategoryPercentage(category="Venue & Rentals", percentage=25.0, reason="Secures site and essential tables/seating."),
+            CategoryPercentage(
+                category="Venue & Rentals", percentage=25.0, reason="Secures site and essential tables/seating."
+            ),
             CategoryPercentage(category="Photography & Video", percentage=15.0, reason="Preserves lifelong memories."),
-            CategoryPercentage(category="Floral & Styling", percentage=10.0, reason="Transforms atmosphere and aesthetic."),
+            CategoryPercentage(
+                category="Floral & Styling", percentage=10.0, reason="Transforms atmosphere and aesthetic."
+            ),
             CategoryPercentage(category="Music & Entertainment", percentage=5.0, reason="Sets celebration energy."),
-            CategoryPercentage(category="Contingency Buffer", percentage=5.0, reason="Covers day-of emergency expenses."),
+            CategoryPercentage(
+                category="Contingency Buffer", percentage=5.0, reason="Covers day-of emergency expenses."
+            ),
         ]
     ),
     "birthday": BudgetSplitOutput(
         categories=[
-            CategoryPercentage(category="Food, Drinks & Cake", percentage=45.0, reason="Main enjoyment factor for celebratory gatherings."),
-            CategoryPercentage(category="Venue / Activity Fees", percentage=30.0, reason="Space rental, entry tickets, or table reservations."),
-            CategoryPercentage(category="Decor & Visual Theme", percentage=12.0, reason="Balloons, lighting, and signage."),
-            CategoryPercentage(category="Entertainment & Games", percentage=8.0, reason="DJ, playlist gear, or group activities."),
+            CategoryPercentage(
+                category="Food, Drinks & Cake",
+                percentage=45.0,
+                reason="Main enjoyment factor for celebratory gatherings.",
+            ),
+            CategoryPercentage(
+                category="Venue / Activity Fees",
+                percentage=30.0,
+                reason="Space rental, entry tickets, or table reservations.",
+            ),
+            CategoryPercentage(
+                category="Decor & Visual Theme", percentage=12.0, reason="Balloons, lighting, and signage."
+            ),
+            CategoryPercentage(
+                category="Entertainment & Games", percentage=8.0, reason="DJ, playlist gear, or group activities."
+            ),
             CategoryPercentage(category="Contingency Buffer", percentage=5.0, reason="Tips and last-minute supplies."),
         ]
     ),
     "community": BudgetSplitOutput(
         categories=[
-            CategoryPercentage(category="Permits, Safety & Sanitation", percentage=25.0, reason="Mandatory city compliance, first-aid, and waste management."),
-            CategoryPercentage(category="Staging, Tents & Equipment", percentage=35.0, reason="Infrastructure for mass outdoor/indoor attendance."),
-            CategoryPercentage(category="Promotion & Signage", percentage=15.0, reason="Outreach, banners, and directional wayfinding."),
-            CategoryPercentage(category="Hydration & Refreshments", percentage=15.0, reason="Volunteer fuel and participant water stations."),
-            CategoryPercentage(category="Contingency Fund", percentage=10.0, reason="Weather adjustments and equipment repairs."),
+            CategoryPercentage(
+                category="Permits, Safety & Sanitation",
+                percentage=25.0,
+                reason="Mandatory city compliance, first-aid, and waste management.",
+            ),
+            CategoryPercentage(
+                category="Staging, Tents & Equipment",
+                percentage=35.0,
+                reason="Infrastructure for mass outdoor/indoor attendance.",
+            ),
+            CategoryPercentage(
+                category="Promotion & Signage", percentage=15.0, reason="Outreach, banners, and directional wayfinding."
+            ),
+            CategoryPercentage(
+                category="Hydration & Refreshments",
+                percentage=15.0,
+                reason="Volunteer fuel and participant water stations.",
+            ),
+            CategoryPercentage(
+                category="Contingency Fund", percentage=10.0, reason="Weather adjustments and equipment repairs."
+            ),
         ]
     ),
 }
@@ -62,7 +94,7 @@ def get_fallback_budget_split(event_type: str) -> BudgetSplitOutput:
 # -----------------------------------------------------------------------------
 # 2. Fallback Personalized Ideas (Exactly 5 aspects)
 # -----------------------------------------------------------------------------
-FALLBACK_IDEAS: Dict[str, IdeasOutput] = {
+FALLBACK_IDEAS: dict[str, IdeasOutput] = {
     "wedding": IdeasOutput(
         ideas=[
             PersonalizedIdea(
@@ -192,7 +224,7 @@ def get_fallback_ideas(event_type: str) -> IdeasOutput:
 # -----------------------------------------------------------------------------
 # 3. Fallback Vendor Categories (5 questions, 3 red flags each)
 # -----------------------------------------------------------------------------
-FALLBACK_VENDOR_CATEGORIES: Dict[str, VendorCategoriesOutput] = {
+FALLBACK_VENDOR_CATEGORIES: dict[str, VendorCategoriesOutput] = {
     "wedding": VendorCategoriesOutput(
         categories=[
             VendorCategoryRecommendation(
@@ -216,7 +248,8 @@ FALLBACK_VENDOR_CATEGORIES: Dict[str, VendorCategoriesOutput] = {
                     "What are the exact load-in and load-out hour restrictions for vendors?",
                     "Is there a mandatory sound decibel curfew or music shut-off cutoff time?",
                     "What is the venue's backup plan if rain occurs during an outdoor ceremony?",
-                    "Are we restricted to an exclusive preferred vendor list or free to bring licensed outside vendors?",
+                    "Are we restricted to an exclusive preferred vendor list or free to bring "
+                    "licensed outside vendors?",
                     "Is an on-site facility manager present for the entire duration of the event?",
                 ],
                 red_flags=[
@@ -249,7 +282,8 @@ FALLBACK_VENDOR_CATEGORIES: Dict[str, VendorCategoriesOutput] = {
                 questions=[
                     "What is the food/drink minimum spend required to waive room rental fees?",
                     "Can we bring in outside specialty items like custom birthday cakes?",
-                    "Do you have an auxiliary cable, Bluetooth, or screen for playing custom playlists and video reels?",
+                    "Do you have an auxiliary cable, Bluetooth, or screen for playing "
+                    "custom playlists and video reels?",
                     "What time are we granted access for setting up decorations?",
                     "What is the policy for cancellation or rescheduling due to host illness?",
                 ],
@@ -322,7 +356,7 @@ def get_fallback_vendor_categories(event_type: str) -> VendorCategoriesOutput:
 # -----------------------------------------------------------------------------
 # 4. Fallback Risk Scenarios (Plan B Matrix with exactly 5 scenarios)
 # -----------------------------------------------------------------------------
-FALLBACK_RISKS: Dict[str, RiskScenariosOutput] = {
+FALLBACK_RISKS: dict[str, RiskScenariosOutput] = {
     "wedding": RiskScenariosOutput(
         risks=[
             RiskScenarioItem(
@@ -382,7 +416,10 @@ FALLBACK_RISKS: Dict[str, RiskScenariosOutput] = {
                 likelihood="low",
                 impact="medium",
                 early_warning_sign="Box shift or delayed bakery courier delivery.",
-                fallback_steps="Pick up gourmet bakery cupcakes locally; restyle with custom toppers and sparkler candles.",
+                fallback_steps=(
+                    "Pick up gourmet bakery cupcakes locally; restyle with custom toppers "
+                    "and sparkler candles."
+                ),
                 cost_impact_percent=2.0,
             ),
             RiskScenarioItem(
@@ -418,7 +455,10 @@ FALLBACK_RISKS: Dict[str, RiskScenariosOutput] = {
                 likelihood="medium",
                 impact="high",
                 early_warning_sign="Forecast 48 hours prior indicates temperatures > 36°C (97°F).",
-                fallback_steps="Deploy 2 emergency misting canopies; double water bottle orders; shift activities earlier.",
+                fallback_steps=(
+                    "Deploy 2 emergency misting canopies; double water bottle orders; "
+                    "shift activities earlier."
+                ),
                 cost_impact_percent=12.0,
             ),
             RiskScenarioItem(

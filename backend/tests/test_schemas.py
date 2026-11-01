@@ -1,11 +1,12 @@
 """Unit tests for Pydantic v2 schemas and validation edge cases."""
 
 from datetime import date, timedelta
+
 import pytest
 from pydantic import ValidationError
 
-from app.schemas.event import EventCreate, EventUpdate
 from app.schemas.common import Currency, EventType
+from app.schemas.event import EventCreate, EventUpdate
 
 
 def get_future_date(days: int = 30) -> date:

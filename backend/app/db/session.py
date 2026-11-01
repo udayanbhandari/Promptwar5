@@ -1,8 +1,10 @@
 """Database connection, session management, and Base declarative model."""
 
-from typing import Generator
+from collections.abc import Generator
+
 from sqlalchemy import create_engine
-from sqlalchemy.orm import declarative_base, sessionmaker, Session
+from sqlalchemy.orm import Session, declarative_base, sessionmaker
+
 from app.core.config import get_settings
 
 settings = get_settings()

@@ -142,3 +142,6 @@ cd frontend && npm run build
 - [Prompt reference](docs/PROMPTS.md)
 - [Demo script](docs/DEMO.md)
 - [Requirement checklist](docs/CHECKLIST.md)
+- [Architecture](docs/ARCHITECTURE.md)
+- [Security](docs/SECURITY.md)
+- [Accessibility](docs/ACCESSIBILITY.md)

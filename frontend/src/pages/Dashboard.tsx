@@ -28,11 +28,11 @@ export default function DashboardPage() {
       .finally(() => setLoading(false));
   }, [id]);
 
-  const tasks = useMemo(() => plan?.tasks ?? [], [plan?.tasks]);
-  const warnings = useMemo(() => plan?.warnings ?? [], [plan?.warnings]);
-  const budgetItems = useMemo(() => plan?.budget ?? [], [plan?.budget]);
-  const vendors = useMemo(() => plan?.vendors ?? [], [plan?.vendors]);
-  const ideas = useMemo(() => plan?.ideas ?? [], [plan?.ideas]);
+  const tasks = useMemo(() => Array.isArray(plan?.tasks) ? plan.tasks : [], [plan?.tasks]);
+  const warnings = useMemo(() => Array.isArray(plan?.warnings) ? plan.warnings : [], [plan?.warnings]);
+  const budgetItems = useMemo(() => Array.isArray(plan?.budget) ? plan.budget : [], [plan?.budget]);
+  const vendors = useMemo(() => Array.isArray(plan?.vendors) ? plan.vendors : [], [plan?.vendors]);
+  const ideas = useMemo(() => Array.isArray(plan?.ideas) ? plan.ideas : [], [plan?.ideas]);
 
   const budgetTotal = useMemo(
     () => budgetItems.reduce((sum, item) => sum + Number(item.estimated_cost || 0), 0),
@@ -40,8 +40,8 @@ export default function DashboardPage() {
   );
 
   const taskProgress = useMemo(() => {
-    if (!tasks.length) return 0;
-    const complete = tasks.filter((task) => task.status === 'completed').length;
+    if (!Array.isArray(tasks) || tasks.length === 0) return 0;
+    const complete = tasks.filter((task) => task?.status === 'completed').length;
     return Math.round((complete / tasks.length) * 100);
   }, [tasks]);
 
@@ -120,7 +120,7 @@ export default function DashboardPage() {
           <div className="stack">
             <section className="stats-row">
               <Card title="Budget health"><strong>{budgetTotal.toLocaleString()}</strong><span>Allocated</span></Card>
-              <Card title="Timeline"><strong>{plan.tasks.length}</strong><span>Tasks</span></Card>
+              <Card title="Timeline"><strong>{tasks.length}</strong><span>Tasks</span></Card>
               <Card title="Progress"><strong>{taskProgress}%</strong><span>Complete</span></Card>
             </section>
             <div className="stack-row">
@@ -152,13 +152,13 @@ export default function DashboardPage() {
                 </svg>
                 <div className="donut-center">{budgetTotal}</div>
               </div>
-              {budgetItems.map((item) => (
+              {budgetItems.length ? budgetItems.map((item) => (
                 <div key={item.id ?? item.category} className="slider-row">
                   <label>{item.category}</label>
-                  <input type="range" min={0} max={200000} value={item.estimated_cost} readOnly />
-                  <span>{item.estimated_cost}</span>
+                  <input type="range" min={0} max={200000} value={Number(item.estimated_cost ?? 0)} readOnly />
+                  <span>{Number(item.estimated_cost ?? 0)}</span>
                 </div>
-              ))}
+              )) : <p>No budget items yet.</p>}
             </Card>
             <Card title="Warnings">
               {warnings.length ? warnings.map((warning) => <p key={warning}>{warning}</p>) : <p>Healthy budget posture.</p>}
@@ -187,19 +187,19 @@ export default function DashboardPage() {
 
         {tab === 'vendors' && (
           <div className="stack">
-            {vendors.map((vendor) => (
+            {vendors.length ? vendors.map((vendor) => (
               <Card key={vendor.id ?? vendor.category} title={vendor.category}>
                 <p>{vendor.name}</p>
                 <p>{vendor.status}</p>
                 <Button variant="secondary" onClick={() => handleGenerateBrief(vendor)}>Generate brief</Button>
               </Card>
-            ))}
+            )) : <Card title="Vendors"><p>No vendors yet.</p></Card>}
           </div>
         )}
 
         {tab === 'ideas' && (
           <div className="stack">
-            {ideas.map((idea) => (
+            {ideas.length ? ideas.map((idea) => (
               <Card key={`${idea.aspect}-${idea.title}`} title={idea.title}>
                 <p>{idea.description}</p>
                 <div className="row">
@@ -207,7 +207,7 @@ export default function DashboardPage() {
                   <Button>Save</Button>
                 </div>
               </Card>
-            ))}
+            )) : <Card title="Ideas"><p>No ideas yet.</p></Card>}
           </div>
         )}
       </div>

@@ -1,8 +1,9 @@
 """Pydantic schemas for Budget Items."""
 
 from datetime import datetime
-from typing import Optional
+
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+
 from app.core.security import sanitize_text
 
 
@@ -18,7 +19,7 @@ class BudgetItemBase(BaseModel):
 
     @field_validator("category", "item_name", mode="before")
     @classmethod
-    def strip_text(cls, v: Optional[str]) -> Optional[str]:
+    def strip_text(cls, v: str | None) -> str | None:
         if isinstance(v, str):
             cleaned = sanitize_text(v)
             if not cleaned:
@@ -36,16 +37,16 @@ class BudgetItemCreate(BudgetItemBase):
 class BudgetItemUpdate(BaseModel):
     """Schema for updating a budget item."""
 
-    category: Optional[str] = Field(None, min_length=1, max_length=50)
-    item_name: Optional[str] = Field(None, min_length=1, max_length=150)
-    estimated_cost: Optional[float] = Field(None, ge=0.0)
-    actual_cost: Optional[float] = Field(None, ge=0.0)
-    is_paid: Optional[bool] = None
-    priority: Optional[int] = Field(None, ge=1, le=3)
+    category: str | None = Field(None, min_length=1, max_length=50)
+    item_name: str | None = Field(None, min_length=1, max_length=150)
+    estimated_cost: float | None = Field(None, ge=0.0)
+    actual_cost: float | None = Field(None, ge=0.0)
+    is_paid: bool | None = None
+    priority: int | None = Field(None, ge=1, le=3)
 
     @field_validator("category", "item_name", mode="before")
     @classmethod
-    def strip_text(cls, v: Optional[str]) -> Optional[str]:
+    def strip_text(cls, v: str | None) -> str | None:
         if isinstance(v, str):
             cleaned = sanitize_text(v)
             if not cleaned:

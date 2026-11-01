@@ -1,8 +1,9 @@
 """Pydantic schemas for Event creation, update, and detail responses."""
 
 from datetime import date, datetime
-from typing import List, Optional
+
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+
 from app.core.security import sanitize_text
 from app.schemas.budget import BudgetItemResponse
 from app.schemas.common import Currency, EventType
@@ -22,8 +23,8 @@ class EventBase(BaseModel):
     total_budget: float = Field(..., gt=0.0, description="Total planned budget (must be greater than 0)")
     currency: Currency = Field(default=Currency.USD, description="Currency from allow-list (INR, USD, EUR, GBP, AED)")
     city: str = Field(..., min_length=1, max_length=100, description="City or region")
-    theme_style: Optional[str] = Field(None, max_length=150, description="Aesthetic, theme, or cultural style")
-    special_requirements: Optional[str] = Field(
+    theme_style: str | None = Field(None, max_length=150, description="Aesthetic, theme, or cultural style")
+    special_requirements: str | None = Field(
         None, max_length=500, description="Dietary restrictions or accessibility needs"
     )
 
@@ -37,7 +38,7 @@ class EventBase(BaseModel):
 
     @field_validator("title", "city", mode="before")
     @classmethod
-    def sanitize_required_strings(cls, v: Optional[str]) -> str:
+    def sanitize_required_strings(cls, v: str | None) -> str:
         """Strip text and ensure required fields are not empty or blank whitespace."""
         if v is None:
             raise ValueError("Field is required and cannot be None.")
@@ -48,7 +49,7 @@ class EventBase(BaseModel):
 
     @field_validator("theme_style", "special_requirements", mode="before")
     @classmethod
-    def sanitize_optional_strings(cls, v: Optional[str]) -> Optional[str]:
+    def sanitize_optional_strings(cls, v: str | None) -> str | None:
         """Strip text and convert empty strings to None."""
         if v is None:
             return None
@@ -65,26 +66,26 @@ class EventCreate(EventBase):
 class EventUpdate(BaseModel):
     """Schema for partial update of an event (all fields optional)."""
 
-    title: Optional[str] = Field(None, min_length=1, max_length=200)
-    event_type: Optional[EventType] = None
-    target_date: Optional[date] = None
-    guest_count: Optional[int] = Field(None, ge=1, le=5000)
-    total_budget: Optional[float] = Field(None, gt=0.0)
-    currency: Optional[Currency] = None
-    city: Optional[str] = Field(None, min_length=1, max_length=100)
-    theme_style: Optional[str] = Field(None, max_length=150)
-    special_requirements: Optional[str] = Field(None, max_length=500)
+    title: str | None = Field(None, min_length=1, max_length=200)
+    event_type: EventType | None = None
+    target_date: date | None = None
+    guest_count: int | None = Field(None, ge=1, le=5000)
+    total_budget: float | None = Field(None, gt=0.0)
+    currency: Currency | None = None
+    city: str | None = Field(None, min_length=1, max_length=100)
+    theme_style: str | None = Field(None, max_length=150)
+    special_requirements: str | None = Field(None, max_length=500)
 
     @field_validator("target_date")
     @classmethod
-    def validate_future_date(cls, v: Optional[date]) -> Optional[date]:
+    def validate_future_date(cls, v: date | None) -> date | None:
         if v is not None and v <= date.today():
             raise ValueError("Event date must be in the future.")
         return v
 
     @field_validator("title", "city", mode="before")
     @classmethod
-    def sanitize_required_strings(cls, v: Optional[str]) -> Optional[str]:
+    def sanitize_required_strings(cls, v: str | None) -> str | None:
         if v is None:
             return None
         cleaned = sanitize_text(str(v))
@@ -94,7 +95,7 @@ class EventUpdate(BaseModel):
 
     @field_validator("theme_style", "special_requirements", mode="before")
     @classmethod
-    def sanitize_optional_strings(cls, v: Optional[str]) -> Optional[str]:
+    def sanitize_optional_strings(cls, v: str | None) -> str | None:
         if v is None:
             return None
         cleaned = sanitize_text(str(v))
@@ -114,10 +115,10 @@ class EventResponse(EventBase):
 class EventDetailResponse(EventResponse):
     """Detailed event response with all nested relational items."""
 
-    budget_items: List[BudgetItemResponse] = []
-    tasks: List[TaskResponse] = []
-    vendors: List[VendorResponse] = []
-    risk_scenarios: List[RiskScenarioResponse] = []
-    share_links: List[ShareLinkResponse] = []
+    budget_items: list[BudgetItemResponse] = []
+    tasks: list[TaskResponse] = []
+    vendors: list[VendorResponse] = []
+    risk_scenarios: list[RiskScenarioResponse] = []
+    share_links: list[ShareLinkResponse] = []
 
     model_config = ConfigDict(from_attributes=True)

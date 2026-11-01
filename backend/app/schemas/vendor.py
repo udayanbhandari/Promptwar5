@@ -1,8 +1,9 @@
 """Pydantic schemas for Vendors."""
 
 from datetime import datetime
-from typing import Optional
+
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+
 from app.core.security import sanitize_text
 from app.schemas.common import VendorStatus
 
@@ -14,12 +15,12 @@ class VendorBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=150)
     status: VendorStatus = VendorStatus.RESEARCHING
     quoted_price: float = Field(default=0.0, ge=0.0)
-    contact_info: Optional[str] = Field(None, max_length=200)
-    notes: Optional[str] = Field(None, max_length=1000)
+    contact_info: str | None = Field(None, max_length=200)
+    notes: str | None = Field(None, max_length=1000)
 
     @field_validator("category", "name", mode="before")
     @classmethod
-    def strip_required_text(cls, v: Optional[str]) -> Optional[str]:
+    def strip_required_text(cls, v: str | None) -> str | None:
         if isinstance(v, str):
             cleaned = sanitize_text(v)
             if not cleaned:
@@ -29,7 +30,7 @@ class VendorBase(BaseModel):
 
     @field_validator("contact_info", "notes", mode="before")
     @classmethod
-    def strip_optional_text(cls, v: Optional[str]) -> Optional[str]:
+    def strip_optional_text(cls, v: str | None) -> str | None:
         if isinstance(v, str):
             cleaned = sanitize_text(v)
             return cleaned if cleaned else None
@@ -45,16 +46,16 @@ class VendorCreate(VendorBase):
 class VendorUpdate(BaseModel):
     """Schema for updating a vendor."""
 
-    category: Optional[str] = Field(None, min_length=1, max_length=50)
-    name: Optional[str] = Field(None, min_length=1, max_length=150)
-    status: Optional[VendorStatus] = None
-    quoted_price: Optional[float] = Field(None, ge=0.0)
-    contact_info: Optional[str] = Field(None, max_length=200)
-    notes: Optional[str] = Field(None, max_length=1000)
+    category: str | None = Field(None, min_length=1, max_length=50)
+    name: str | None = Field(None, min_length=1, max_length=150)
+    status: VendorStatus | None = None
+    quoted_price: float | None = Field(None, ge=0.0)
+    contact_info: str | None = Field(None, max_length=200)
+    notes: str | None = Field(None, max_length=1000)
 
     @field_validator("category", "name", mode="before")
     @classmethod
-    def strip_required_text(cls, v: Optional[str]) -> Optional[str]:
+    def strip_required_text(cls, v: str | None) -> str | None:
         if isinstance(v, str):
             cleaned = sanitize_text(v)
             if not cleaned:
@@ -64,7 +65,7 @@ class VendorUpdate(BaseModel):
 
     @field_validator("contact_info", "notes", mode="before")
     @classmethod
-    def strip_optional_text(cls, v: Optional[str]) -> Optional[str]:
+    def strip_optional_text(cls, v: str | None) -> str | None:
         if isinstance(v, str):
             cleaned = sanitize_text(v)
             return cleaned if cleaned else None

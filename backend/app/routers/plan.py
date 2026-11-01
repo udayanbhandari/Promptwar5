@@ -3,14 +3,15 @@
 from __future__ import annotations
 
 from datetime import date
-from typing import Any, Dict, List
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from app.core.security import limiter
 from app.db.session import get_db
-from app.engines.budget_engine import allocate, warnings as budget_warnings
+from app.engines.budget_engine import allocate
+from app.engines.budget_engine import warnings as budget_warnings
 from app.engines.runsheet_engine import build_runsheet
 from app.engines.timeline_engine import build_timeline
 from app.models import BudgetItem, Event, Task, Vendor
@@ -33,26 +34,26 @@ def _event_or_404(event_id: str, db: Session) -> Event:
     return event
 
 
-def _ai_plan_payload(event: Event) -> Dict[str, Any]:
+def _ai_plan_payload(event: Event) -> dict[str, Any]:
     budget_prompt = budget_split_v1.build_prompt(
-        event_type=event.event_type,
-        guest_count=event.guest_count,
-        city=event.city,
-        culture_style=event.theme_style or "",
-        special_requirements=event.special_requirements or "",
+        event_type=str(event.event_type),
+        guest_count=int(event.guest_count),
+        city=str(event.city),
+        culture_style=str(event.theme_style or ""),
+        special_requirements=str(event.special_requirements or ""),
     )
     idea_prompt = ideas_v1.build_prompt(
-        event_type=event.event_type,
-        guest_count=event.guest_count,
-        city=event.city,
-        culture_style=event.theme_style or "",
-        special_requirements=event.special_requirements or "",
+        event_type=str(event.event_type),
+        guest_count=int(event.guest_count),
+        city=str(event.city),
+        culture_style=str(event.theme_style or ""),
+        special_requirements=str(event.special_requirements or ""),
     )
     vendor_prompt = vendor_categories_v1.build_prompt(
-        event_type=event.event_type,
-        guest_count=event.guest_count,
-        city=event.city,
-        special_requirements=event.special_requirements or "",
+        event_type=str(event.event_type),
+        guest_count=int(event.guest_count),
+        city=str(event.city),
+        special_requirements=str(event.special_requirements or ""),
     )
 
     used_fallback = False
@@ -62,9 +63,9 @@ def _ai_plan_payload(event: Event) -> Dict[str, Any]:
         vendor_output = generate_structured(vendor_prompt, vendor_categories_v1.OutputSchema)
     except AIUnavailable:
         used_fallback = True
-        budget_output = get_fallback_budget_split(event.event_type)
-        idea_output = get_fallback_ideas(event.event_type)
-        vendor_output = get_fallback_vendor_categories(event.event_type)
+        budget_output = get_fallback_budget_split(str(event.event_type))
+        idea_output = get_fallback_ideas(str(event.event_type))
+        vendor_output = get_fallback_vendor_categories(str(event.event_type))
 
     return {
         "budget": budget_output,
@@ -79,15 +80,13 @@ def _ai_plan_payload(event: Event) -> Dict[str, Any]:
 def generate_plan(
     request: Request,
     event_id: str,
-    db: Session = Depends(get_db),
-) -> Dict[str, Any]:
+    db: Session = Depends(get_db),  # noqa: B008
+) -> dict[str, Any]:
+    """Generate a fresh plan for an event using AI-assisted prompts and deterministic fallbacks."""
     event = _event_or_404(event_id, db)
     payload = _ai_plan_payload(event)
 
-    category_percentages = {
-        category.category: float(category.percentage)
-        for category in payload["budget"].categories
-    }
+    category_percentages = {category.category: float(category.percentage) for category in payload["budget"].categories}
     total_minor = int(round(float(event.total_budget) * 100))
     allocations = allocate(total_minor, category_percentages)
 
@@ -109,8 +108,13 @@ def generate_plan(
         db.add(item)
         budget_items.append(item)
 
-    timeline = build_timeline(event.event_type, event.target_date, date.today())
-    saved_tasks: List[Task] = []
+    target_date = (
+        event.target_date
+        if isinstance(event.target_date, date)
+        else date.fromisoformat(str(event.target_date))
+    )
+    timeline = build_timeline(str(event.event_type), target_date, date.today())
+    saved_tasks: list[Task] = []
     for task in timeline:
         created = Task(
             event_id=event.id,
@@ -126,8 +130,8 @@ def generate_plan(
         db.add(created)
         saved_tasks.append(created)
 
-    for index, task in enumerate(saved_tasks):
-        task.depends_on = list(task.depends_on)
+    for _index, task in enumerate(saved_tasks):
+        task.depends_on = [str(dep) for dep in list(task.depends_on or [])]  # type: ignore[assignment]
 
     vendors = []
     for category in payload["vendors"].categories:
@@ -205,13 +209,14 @@ def generate_plan(
         ],
         "warnings": budget_warnings(
             [{"category": item.category, "amount": item.estimated_cost} for item in budget_items],
-            event.guest_count,
+            int(event.guest_count),
         ),
     }
 
 
 @router.get("/{event_id}/plan")
-def get_plan(event_id: str, db: Session = Depends(get_db)) -> Dict[str, Any]:
+def get_plan(event_id: str, db: Session = Depends(get_db)) -> dict[str, Any]:  # noqa: B008
+    """Return the generated plan for a specific event."""
     event = _event_or_404(event_id, db)
     budget_items = db.query(BudgetItem).filter(BudgetItem.event_id == event.id).all()
     tasks = db.query(Task).filter(Task.event_id == event.id).order_by(Task.due_date.asc()).all()
@@ -262,7 +267,12 @@ def get_plan(event_id: str, db: Session = Depends(get_db)) -> Dict[str, Any]:
 
 
 @router.patch("/tasks/{task_id}")
-def update_task(task_id: str, payload: TaskUpdate, db: Session = Depends(get_db)) -> Dict[str, Any]:
+def update_task(
+    task_id: str,
+    payload: TaskUpdate,
+    db: Session = Depends(get_db),  # noqa: B008
+) -> dict[str, Any]:
+    """Apply a partial update to a task record."""
     task = db.query(Task).filter(Task.id == task_id).first()
     if not task:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
@@ -286,7 +296,8 @@ def update_task(task_id: str, payload: TaskUpdate, db: Session = Depends(get_db)
 
 
 @router.get("/{event_id}/runsheet")
-def get_runsheet(event_id: str, db: Session = Depends(get_db)) -> Dict[str, Any]:
+def get_runsheet(event_id: str, db: Session = Depends(get_db)) -> dict[str, Any]:  # noqa: B008
+    """Return the created event run sheet for the day of the event."""
     event = _event_or_404(event_id, db)
-    schedule = build_runsheet(event.event_type, "09:00", event.guest_count)
+    schedule = build_runsheet(str(event.event_type), "09:00", int(event.guest_count))
     return {"event_id": event.id, "runsheet": schedule}

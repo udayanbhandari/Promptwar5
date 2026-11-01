@@ -1,8 +1,10 @@
 """SQLAlchemy model for Vendor entity."""
 
 import uuid
+
 from sqlalchemy import Column, DateTime, Float, ForeignKey, String, Text, func
 from sqlalchemy.orm import relationship
+
 from app.db.session import Base
 
 

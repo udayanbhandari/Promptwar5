@@ -45,7 +45,7 @@ def test_prompt_modules_metadata():
     for mod in modules:
         assert hasattr(mod, "VERSION")
         assert hasattr(mod, "OutputSchema")
-        assert callable(getattr(mod, "build_prompt"))
+        assert callable(mod.build_prompt)
         assert "v1" in mod.VERSION
 
 
@@ -95,10 +95,34 @@ def test_ideas_schema_rejects_non_5_items():
     """IdeasOutput must reject counts != 5 or missing aspects."""
     # 4 ideas only
     four_ideas = [
-        PersonalizedIdea(aspect="theme", title="Theme 1", description="Valid description length", cost_tier="low", why_it_fits="Fits context well"),
-        PersonalizedIdea(aspect="decor", title="Decor 2", description="Valid description length", cost_tier="medium", why_it_fits="Fits context well"),
-        PersonalizedIdea(aspect="food", title="Food 3", description="Valid description length", cost_tier="high", why_it_fits="Fits context well"),
-        PersonalizedIdea(aspect="entertainment", title="Music 4", description="Valid description length", cost_tier="low", why_it_fits="Fits context well"),
+        PersonalizedIdea(
+            aspect="theme",
+            title="Theme 1",
+            description="Valid description length",
+            cost_tier="low",
+            why_it_fits="Fits context well",
+        ),
+        PersonalizedIdea(
+            aspect="decor",
+            title="Decor 2",
+            description="Valid description length",
+            cost_tier="medium",
+            why_it_fits="Fits context well",
+        ),
+        PersonalizedIdea(
+            aspect="food",
+            title="Food 3",
+            description="Valid description length",
+            cost_tier="high",
+            why_it_fits="Fits context well",
+        ),
+        PersonalizedIdea(
+            aspect="entertainment",
+            title="Music 4",
+            description="Valid description length",
+            cost_tier="low",
+            why_it_fits="Fits context well",
+        ),
     ]
     with pytest.raises(ValidationError) as exc_info:
         IdeasOutput(ideas=four_ideas)
@@ -106,7 +130,13 @@ def test_ideas_schema_rejects_non_5_items():
 
     # 5 ideas but duplicate aspect (missing memorable_touch)
     duplicate_aspect_ideas = four_ideas + [
-        PersonalizedIdea(aspect="theme", title="Theme 5", description="Valid description length", cost_tier="low", why_it_fits="Fits context well"),
+        PersonalizedIdea(
+            aspect="theme",
+            title="Theme 5",
+            description="Valid description length",
+            cost_tier="low",
+            why_it_fits="Fits context well",
+        ),
     ]
     with pytest.raises(ValidationError) as exc_info_2:
         IdeasOutput(ideas=duplicate_aspect_ideas)

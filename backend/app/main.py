@@ -1,17 +1,16 @@
 """Main FastAPI application entry point with middleware, routing, and error handlers."""
 
 from contextlib import asynccontextmanager
-from typing import Any
+
 from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.core.config import settings
-from app.core.security import limiter
+from app.core.security import SecurityHeadersMiddleware, limiter
 from app.db.session import Base, engine
 from app.routers.events import router as events_router
 from app.routers.plan import router as plan_router
@@ -40,11 +39,12 @@ app.state.limiter = limiter
 # -----------------------------------------------------------------------------
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS if isinstance(settings.CORS_ORIGINS, list) else ["*"],
+    allow_origins=settings.cors_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=settings.CORS_METHODS,
+    allow_headers=settings.CORS_HEADERS,
 )
+app.add_middleware(SecurityHeadersMiddleware)
 
 
 # -----------------------------------------------------------------------------
@@ -64,9 +64,7 @@ async def rate_limit_handler(request: Request, exc: RateLimitExceeded) -> JSONRe
 
 
 @app.exception_handler(RequestValidationError)
-async def validation_exception_handler(
-    request: Request, exc: RequestValidationError
-) -> JSONResponse:
+async def validation_exception_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
     """Format request validation errors consistently."""
     details = []
     for err in exc.errors():
@@ -90,9 +88,7 @@ async def validation_exception_handler(
 
 
 @app.exception_handler(StarletteHTTPException)
-async def http_exception_handler(
-    request: Request, exc: StarletteHTTPException
-) -> JSONResponse:
+async def http_exception_handler(request: Request, exc: StarletteHTTPException) -> JSONResponse:
     """Format standard HTTP exceptions consistently."""
     error_code = "http_error"
     if exc.status_code == status.HTTP_404_NOT_FOUND:
@@ -125,7 +121,7 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
         content={
             "error": "internal_server_error",
             "message": "An unexpected server error occurred.",
-            "details": str(exc) if settings.DEBUG else None,
+            "details": None,
         },
     )
 

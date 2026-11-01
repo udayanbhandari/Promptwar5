@@ -1,8 +1,10 @@
 """SQLAlchemy model for Task entity."""
 
 import uuid
-from sqlalchemy import Boolean, Column, Date, DateTime, ForeignKey, JSON, String, func
+
+from sqlalchemy import JSON, Boolean, Column, Date, DateTime, ForeignKey, String, func
 from sqlalchemy.orm import relationship
+
 from app.db.session import Base
 
 

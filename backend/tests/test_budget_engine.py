@@ -1,5 +1,3 @@
-from collections import OrderedDict
-
 import pytest
 
 from app.engines.budget_engine import allocate, recalculate, warnings
@@ -14,6 +12,7 @@ from app.engines.budget_engine import allocate, recalculate, warnings
     ],
 )
 def test_allocate_exact_sum(total, percentages):
+    """Ensure allocations maintain the exact total and reserve contingency."""
     result = allocate(total, percentages)
     assert sum(result.values()) == total
     assert set(result.keys()) == set(percentages) | {"Contingency"}
@@ -22,6 +21,7 @@ def test_allocate_exact_sum(total, percentages):
 
 
 def test_allocate_handles_locked_total():
+    """Allocations should still sum to the target total when contingency is present."""
     total = 10000
     result = allocate(total, {"Venue": 60, "Food": 25, "Decor": 15})
     assert sum(result.values()) == total
@@ -29,6 +29,7 @@ def test_allocate_handles_locked_total():
 
 
 def test_recalculate_maintains_total_and_respects_locks():
+    """Locked categories must stay fixed while other categories rebalance."""
     items = [
         {"category": "Venue", "amount": 5000},
         {"category": "Catering", "amount": 3000},
@@ -40,12 +41,14 @@ def test_recalculate_maintains_total_and_respects_locks():
 
 
 def test_recalculate_raises_if_locks_exceed_total():
+    """A lock set above the declared total should raise a validation error."""
     items = [{"category": "Venue", "amount": 5000}, {"category": "Catering", "amount": 3000}]
     with pytest.raises(ValueError, match="exceed"):
         recalculate(items, total=7000, locked={"Venue": 5000, "Catering": 4000})
 
 
 def test_warnings_for_low_catering_and_low_contingency():
+    """Warnings should flag low catering spend and insufficient contingency."""
     items = [
         {"category": "Venue", "amount": 8000},
         {"category": "Food", "amount": 2500},

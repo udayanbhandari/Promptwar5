@@ -1,6 +1,7 @@
 """Pydantic schemas enforcing Gemini structured outputs for all planning domains."""
 
-from typing import List, Literal
+from typing import Literal
+
 from pydantic import BaseModel, Field, field_validator
 
 
@@ -18,11 +19,11 @@ class CategoryPercentage(BaseModel):
 class BudgetSplitOutput(BaseModel):
     """Structured output for budget allocations. Must sum to exactly 100%."""
 
-    categories: List[CategoryPercentage] = Field(..., min_length=3, max_length=12)
+    categories: list[CategoryPercentage] = Field(..., min_length=3, max_length=12)
 
     @field_validator("categories")
     @classmethod
-    def validate_sum_100(cls, categories: List[CategoryPercentage]) -> List[CategoryPercentage]:
+    def validate_sum_100(cls, categories: list[CategoryPercentage]) -> list[CategoryPercentage]:
         """Verify that category percentages sum to 100 within floating point precision."""
         total = sum(c.percentage for c in categories)
         if abs(total - 100.0) > 0.5:
@@ -46,11 +47,11 @@ class PersonalizedIdea(BaseModel):
 class IdeasOutput(BaseModel):
     """Exactly 5 curated ideas covering theme, decor, food, entertainment, and memorable touch."""
 
-    ideas: List[PersonalizedIdea]
+    ideas: list[PersonalizedIdea]
 
     @field_validator("ideas")
     @classmethod
-    def validate_exactly_five(cls, ideas: List[PersonalizedIdea]) -> List[PersonalizedIdea]:
+    def validate_exactly_five(cls, ideas: list[PersonalizedIdea]) -> list[PersonalizedIdea]:
         if len(ideas) != 5:
             raise ValueError(f"Must have exactly 5 ideas (one per aspect), received {len(ideas)}")
         aspects = {i.aspect for i in ideas}
@@ -67,19 +68,19 @@ class VendorCategoryRecommendation(BaseModel):
     """Required vendor category with inquiry questions and red flags."""
 
     category: str = Field(..., min_length=2, max_length=60)
-    questions: List[str] = Field(..., description="Exactly 5 screening questions to ask")
-    red_flags: List[str] = Field(..., description="Exactly 3 warning signs or red flags")
+    questions: list[str] = Field(..., description="Exactly 5 screening questions to ask")
+    red_flags: list[str] = Field(..., description="Exactly 3 warning signs or red flags")
 
     @field_validator("questions")
     @classmethod
-    def validate_questions_count(cls, v: List[str]) -> List[str]:
+    def validate_questions_count(cls, v: list[str]) -> list[str]:
         if len(v) != 5:
             raise ValueError(f"Must provide exactly 5 questions, got {len(v)}")
         return v
 
     @field_validator("red_flags")
     @classmethod
-    def validate_red_flags_count(cls, v: List[str]) -> List[str]:
+    def validate_red_flags_count(cls, v: list[str]) -> list[str]:
         if len(v) != 3:
             raise ValueError(f"Must provide exactly 3 red flags, got {len(v)}")
         return v
@@ -88,7 +89,7 @@ class VendorCategoryRecommendation(BaseModel):
 class VendorCategoriesOutput(BaseModel):
     """List of vendor categories needed for this event."""
 
-    categories: List[VendorCategoryRecommendation] = Field(..., min_length=2, max_length=10)
+    categories: list[VendorCategoryRecommendation] = Field(..., min_length=2, max_length=10)
 
 
 # -----------------------------------------------------------------------------
@@ -108,11 +109,11 @@ class RiskScenarioItem(BaseModel):
 class RiskScenariosOutput(BaseModel):
     """Exactly 5 prioritized risk scenarios."""
 
-    risks: List[RiskScenarioItem]
+    risks: list[RiskScenarioItem]
 
     @field_validator("risks")
     @classmethod
-    def validate_exactly_five(cls, risks: List[RiskScenarioItem]) -> List[RiskScenarioItem]:
+    def validate_exactly_five(cls, risks: list[RiskScenarioItem]) -> list[RiskScenarioItem]:
         if len(risks) != 5:
             raise ValueError(f"Must provide exactly 5 risk scenarios, got {len(risks)}")
         return risks
@@ -125,4 +126,4 @@ class VendorBriefOutput(BaseModel):
     """Concise inquiry communication and vendor selection checklist."""
 
     enquiry_message: str = Field(..., min_length=20, max_length=1000, description="WhatsApp/Email inquiry message")
-    comparison_checklist: List[str] = Field(..., min_length=3, max_length=8, description="Criteria to evaluate quotes")
+    comparison_checklist: list[str] = Field(..., min_length=3, max_length=8, description="Criteria to evaluate quotes")
